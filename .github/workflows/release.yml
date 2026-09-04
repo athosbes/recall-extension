@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. v1.2.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve version
+        id: version
+        run: echo "value=${{ github.event.inputs.version || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      # The tag is the single source of truth. Without this the published zip
+      # can carry a manifest version that disagrees with the tag it came from.
+      - name: Stamp version into package.json and manifest.json
+        run: node scripts/set-version.mjs "${{ steps.version.outputs.value }}"
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Package
+        run: pnpm package:extension
+
+      - name: Validate manifest
+        run: pnpm validate:manifest
+
+      - name: Create archive
+        run: node scripts/zip-extension.mjs
+
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          version="${version#v}"
+          # Compares the heading to the version exactly rather than by regex, so
+          # the dots in a version cannot make it match the wrong section.
+          awk -v v="$version" '
+            /^## / {
+              if (found) exit
+              heading = $0
+              sub(/^## /, "", heading)
+              gsub(/[][]/, "", heading)
+              split(heading, parts, " ")
+              if (parts[1] == v) found = 1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "No changelog entry for $version." > release-notes.md
+          fi
+          cat release-notes.md
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Recall ${{ steps.version.outputs.value }}
+          tag_name: ${{ steps.version.outputs.value }}
+          body_path: release-notes.md
+          append_body: true
+          generate_release_notes: true
+          files: |
+            dist/recall-*.zip
+            dist/recall-*.zip.sha256

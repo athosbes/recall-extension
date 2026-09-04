@@ -1,0 +1,7 @@
+# Normalise line endings to LF everywhere. Prettier is configured with
+# endOfLine: "lf", so without this a Windows checkout fails `pnpm format:check`
+# on every file.
+* text=auto eol=lf
+
+*.png binary
+*.zip binary

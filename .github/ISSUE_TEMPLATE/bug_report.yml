@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in Recall does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Recall stores everything locally, so please do not paste a backup file —
+        it contains every page you have saved.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. See …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Recall version
+      description: Shown on the extension card in chrome://extensions
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Chrome 131 on Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: >
+        From the service worker link on chrome://extensions, or right-click the
+        popup and choose Inspect. Redact anything private.
+      render: text
